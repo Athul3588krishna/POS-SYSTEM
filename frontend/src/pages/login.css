@@ -81,8 +81,8 @@
 
 /* Logo circle */
 .logo-circle {
-  width: 160px;
-  height: 160px;
+  width: 180px;
+  height: 180px;
   border-radius: 50%;
   background: white;
   display: flex;
@@ -93,8 +93,8 @@
 }
 
 .logo-circle img {
-  width: 110px;
-  height: 110px;
+  width: 150px;
+  height: 150px;
   object-fit: contain;
   border-radius: 50%;
 }
