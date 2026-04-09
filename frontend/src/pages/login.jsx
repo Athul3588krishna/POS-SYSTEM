@@ -1,19 +1,29 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./login.css";
 
 const Login = () => {
+  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleLogin = (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMsg("");
+    
     setTimeout(() => {
       setIsLoading(false);
-      console.log("Login:", username, password);
-    }, 1500);
+      // Single Admin Login per requirements
+      if (username === "admin" && password === "admin") {
+        navigate("/dashboard");
+      } else {
+        setErrorMsg("Invalid username or password");
+      }
+    }, 1000);
   };
 
   return (
@@ -62,13 +72,15 @@ const Login = () => {
           {/* Form */}
           <form onSubmit={handleLogin} className="login-form" noValidate>
 
+            {errorMsg && <div style={{color: '#c00026', marginBottom: '1rem', fontSize: '0.9rem', textAlign: 'center'}}>{errorMsg}</div>}
+
             <div className="form-group">
               <label htmlFor="username">Username</label>
               <div className="input-wrapper">
-                <svg className="input-icon" viewBox="0 0 24 24" fill="none">
+               {/* <svg className="input-icon" viewBox="0 0 24 24" fill="none">
                   <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                   <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
+                </svg> */}
                 <input
                   id="username"
                   type="text"
@@ -84,10 +96,10 @@ const Login = () => {
             <div className="form-group">
               <label htmlFor="password">Password</label>
               <div className="input-wrapper password-wrapper">
-                <svg className="input-icon" viewBox="0 0 24 24" fill="none">
+                {/* <svg className="input-icon" viewBox="0 0 24 24" fill="none">
                   <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2"/>
                   <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
+                </svg> */}
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -123,7 +135,7 @@ const Login = () => {
                 <input type="checkbox" />
                 <span>Remember me</span>
               </label>
-              <a href="#" className="forgot-link">Forgot password?</a>
+             {/* <a href="#" className="forgot-link">Forgot password?</a> */}
             </div>
 
             <button type="submit" className={`login-btn ${isLoading ? "loading" : ""}`} disabled={isLoading}>
