@@ -11,11 +11,15 @@ const invoiceSchema = new mongoose.Schema({
     trn: String
   },
 
-  items: [
-    {
-      name: String,
-      qty: Number,
-      rate: Number,
+	  items: [
+	    {
+	      productId: {
+	        type: mongoose.Schema.Types.ObjectId,
+	        ref: "Product"
+	      },
+	      name: String,
+	      qty: Number,
+	      rate: Number,
       vat: Number,
       total: Number
     }
@@ -26,7 +30,7 @@ const invoiceSchema = new mongoose.Schema({
   discount: Number,
   grandTotal: Number,
 
-  paymentMethod: String
-});
+	  paymentMethod: String
+	}, { timestamps: true });
 
 module.exports = mongoose.model("Invoice", invoiceSchema);

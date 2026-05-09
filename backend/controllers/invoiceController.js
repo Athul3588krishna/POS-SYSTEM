@@ -4,44 +4,68 @@ const { calculateInvoice } = require("../utils/calc");
 
 exports.createInvoice = async (req, res) => {
   try {
-    const { items, customer, discount } = req.body;
+    const { items = [], customer = {}, discount = 0, paymentMethod = "Cash" } = req.body;
 
-    // //STOCK VALIDATE CHEYYAL
-    for (let item of items) {
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "At least one invoice item is required" });
+    }
+
+    const invoiceItems = [];
+
+    for (const item of items) {
       const product = await Product.findById(item.productId);
+      const qty = Number(item.qty);
 
       if (!product) {
-        return res.status(404).json({ message: `Product not found` });
+        return res.status(404).json({ message: "Product not found" });
       }
 
-      if (product.stock < item.qty) {
+      if (!Number.isFinite(qty) || qty <= 0) {
+        return res.status(400).json({ message: `Invalid quantity for ${product.name}` });
+      }
+
+      if (product.stock < qty) {
         return res.status(400).json({
           message: `Insufficient stock for ${product.name}`
         });
       }
+
+      invoiceItems.push({
+        productId: product._id,
+        name: product.name,
+        qty,
+        rate: product.price,
+        vatApplicable: product.vatApplicable
+      });
     }
 
-    // CALCULATE BILL
-    const calc = calculateInvoice(items, discount);
+    const calc = calculateInvoice(invoiceItems, Number(discount) || 0);
 
-    // STOCK KURAKKUKA
-    for (let item of items) {
+    for (const item of invoiceItems) {
       await Product.findByIdAndUpdate(item.productId, {
         $inc: { stock: -item.qty }
       });
     }
 
-    // SAVE INVOICE
     const invoice = await Invoice.create({
       invoiceNumber: "INV-" + Date.now(),
       date: new Date(),
       customer,
       ...calc,
-      paymentMethod: "Cash"
+      paymentMethod
     });
 
-    res.json(invoice);
+    res.status(201).json(invoice);
 
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getInvoices = async (req, res) => {
+  try {
+    const invoices = await Invoice.find().sort({ date: -1 });
+    res.json(invoices);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

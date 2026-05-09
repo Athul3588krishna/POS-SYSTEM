@@ -9,9 +9,10 @@ const {
 } = require("../controllers/productController");
 
 const auth = require("../middleware/authMiddleware");
+const { requireRole } = require("../middleware/authMiddleware");
 
 // CREATE PRODUCT
-router.post("/", auth, createProduct);
+router.post("/", auth, requireRole("admin"), createProduct);
 
 // GET ALL PRODUCTS
 router.get("/", auth, getProducts);
@@ -20,9 +21,9 @@ router.get("/", auth, getProducts);
 router.get("/:id", auth, getSingleProduct);
 
 // UPDATE PRODUCT
-router.put("/:id", auth, updateProduct);
+router.put("/:id", auth, requireRole("admin"), updateProduct);
 
 // DELETE PRODUCT
-router.delete("/:id", auth, deleteProduct);
+router.delete("/:id", auth, requireRole("admin"), deleteProduct);
 
 module.exports = router;

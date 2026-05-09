@@ -1,15 +1,31 @@
-const jwt = require("jsonwebtoken");
+const { verifyToken } = require("../utils/auth");
 
-module.exports = (req, res, next) => {
-  const token = req.headers.authorization;
+const auth = (req, res, next) => {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : authHeader;
 
-  if (!token) return res.status(401).json("No token");
+  if (!token) {
+    return res.status(401).json({ message: "No token provided" });
+  }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifyToken(token);
     req.user = decoded;
     next();
-  } catch {
-    res.status(401).json("Invalid token");
+  } catch (err) {
+    res.status(401).json({ message: err.message || "Invalid token" });
   }
 };
+
+const requireRole = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return res.status(403).json({ message: "You do not have permission for this action" });
+  }
+
+  next();
+};
+
+module.exports = auth;
+module.exports.requireRole = requireRole;

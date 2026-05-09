@@ -3,21 +3,22 @@ const Product = require("../models/Product");
 // CREATE PRODUCT
 exports.createProduct = async (req, res) => {
   try {
-    const { name, price, stock, vatApplicable } = req.body;
-//VALIDATION
+    const { name, price, stock = 0, vatApplicable = true, category = "General" } = req.body;
+
     if (!name || price == null) {
       return res.status(400).json({ message: "Name and price are required" });
     }
 
-    if (price < 0 || stock < 0) {
+    if (Number(price) < 0 || Number(stock) < 0) {
       return res.status(400).json({ message: "Invalid price or stock" });
     }
 
     const product = await Product.create({
       name,
-      price,
-      stock,
-      vatApplicable
+      price: Number(price),
+      stock: Number(stock),
+      vatApplicable: Boolean(vatApplicable),
+      category
     });
 
     res.status(201).json(product);
@@ -57,11 +58,23 @@ exports.getSingleProduct = async (req, res) => {
 // UPDATE PRODUCT
 exports.updateProduct = async (req, res) => {
   try {
+    if (req.body.price != null && Number(req.body.price) < 0) {
+      return res.status(400).json({ message: "Invalid price" });
+    }
+
+    if (req.body.stock != null && Number(req.body.stock) < 0) {
+      return res.status(400).json({ message: "Invalid stock" });
+    }
+
     const updated = await Product.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true }
+      { new: true, runValidators: true }
     );
+
+    if (!updated) {
+      return res.status(404).json({ message: "Product not found" });
+    }
 
     res.json(updated);
 
@@ -73,7 +86,12 @@ exports.updateProduct = async (req, res) => {
 // DELETE PRODUCT
 exports.deleteProduct = async (req, res) => {
   try {
-    await Product.findByIdAndDelete(req.params.id);
+    const deleted = await Product.findByIdAndDelete(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
     res.json({ message: "Product deleted successfully" });
 
   } catch (err) {
