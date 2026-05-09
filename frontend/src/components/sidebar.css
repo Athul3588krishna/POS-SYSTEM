@@ -1,0 +1,159 @@
+/* =============================================
+   SIDEBAR — Desktop fixed + Mobile drawer
+   ============================================= */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');
+
+/* ── Mobile top bar (hidden on desktop) ── */
+.mobile-topbar {
+  display: none;
+}
+
+/* ── Sidebar panel ── */
+.sidebar {
+  width: 220px;
+  min-height: 100vh;
+  background: #fff;
+  border-right: 1px solid #f0dfe4;
+  padding: 22px 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  font-family: 'DM Sans', sans-serif;
+  /* Desktop: normal flow */
+  position: relative;
+  z-index: 100;
+}
+
+/* Close button — hidden on desktop */
+.sb-close-btn { display: none; }
+
+/* Brand */
+.sb-brand {
+  display: flex; align-items: center; gap: 10px;
+  color: #c00026; font-weight: 700; font-size: 14px;
+  margin-bottom: 14px; padding-bottom: 14px;
+  border-bottom: 1px solid #f0dfe4;
+}
+.sb-logo { width: 34px; height: 34px; border-radius: 50%; object-fit: contain; }
+
+/* Role badge */
+.sb-role-badge {
+  font-size: 11.5px; font-weight: 600;
+  padding: 7px 12px; border-radius: 8px; margin-bottom: 10px;
+}
+.sb-role-badge.admin { background: #fff0f2; color: #c00026; border: 1px solid #f5c0c8; }
+.sb-role-badge.staff { background: #f0f4ff; color: #3a5fd9; border: 1px solid #c5d0f5; }
+
+/* Nav */
+.sb-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+
+.sb-btn {
+  width: 100%;
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 12px;
+  background: none; border: none; border-radius: 8px;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+  color: #666; cursor: pointer; text-align: left;
+  transition: background 0.18s, color 0.18s;
+  /* bigger tap targets on mobile */
+  min-height: 44px;
+}
+.sb-btn:hover  { background: #fce4ec; color: #c00026; }
+.sb-btn.active { background: #fce4ec; color: #c00026; font-weight: 600; }
+
+/* Logout — sits right below last nav item */
+.sb-logout {
+  color: #e05070;
+  font-weight: 600;
+}
+.sb-logout:hover { background: #fff5f5; color: #c00026; }
+
+/* Thin divider above logout */
+.sb-logout-divider {
+  height: 1px;
+  background: #f0dfe4;
+  margin: 6px 0;
+}
+
+/* Overlay */
+.sb-overlay { display: none; }
+
+/* =============================================
+   MOBILE (max 768px) — Slide-in drawer
+   ============================================= */
+@media (max-width: 768px) {
+
+  /* Show mobile top bar */
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #fff;
+    border-bottom: 1px solid #f0dfe4;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    width: 100%;
+  }
+
+  .mobile-brand {
+    display: flex; align-items: center; gap: 9px;
+    color: #c00026; font-weight: 700; font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .mobile-logo {
+    width: 30px; height: 30px; border-radius: 50%; object-fit: contain;
+  }
+
+  .mobile-hamburger {
+    background: none; border: none; cursor: pointer;
+    color: #c00026; padding: 6px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    transition: background 0.2s;
+  }
+  .mobile-hamburger:hover { background: #fce4ec; }
+
+  /* Sidebar becomes off-canvas drawer */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 260px;
+    height: 100vh;
+    min-height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.22,1,0.36,1);
+    box-shadow: none;
+    z-index: 300;
+    padding-top: 16px;
+    overflow-y: auto;
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 32px rgba(0,0,0,0.12);
+  }
+
+  /* Show close button on mobile */
+  .sb-close-btn {
+    display: flex;
+    align-self: flex-end;
+    margin-bottom: 12px;
+    background: none; border: none; cursor: pointer;
+    color: #aaa; padding: 6px;
+    border-radius: 8px;
+    transition: color 0.2s, background 0.2s;
+  }
+  .sb-close-btn:hover { color: #c00026; background: #fce4ec; }
+
+  /* Overlay */
+  .sb-overlay {
+    display: block;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 250;
+    backdrop-filter: blur(2px);
+  }
+}

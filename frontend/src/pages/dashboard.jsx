@@ -1,494 +1,322 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus, Printer, Save, LogOut, BarChart3, Trash2 } from "lucide-react";
+import React, { useState } from "react";
+import Sidebar from "../components/sidebar";
 import "./dashboard.css";
+import "./dashboard-analytics.css";
 
+/* ─── Sample data (replace with real API data later) ─── */
+const DAILY_INVOICES = [
+  { invNo: "INV-001", customer: "Al Noor Trading",    total: 530.00, vat: 25.24, grand: 555.24, payment: "Cash",   items: 3 },
+  { invNo: "INV-002", customer: "Gulf Tech LLC",       total: 210.00, vat: 10.00, grand: 220.00, payment: "Cheque", items: 2 },
+  { invNo: "INV-003", customer: "Bright Copy Centre",  total: 850.00, vat: 40.48, grand: 890.48, payment: "Cash",   items: 5 },
+];
+
+const MONTHLY_WEEKS = [
+  { week: "Week 1", invoices: 12, revenue: 4820,  vat: 229.52 },
+  { week: "Week 2", invoices: 18, revenue: 7340,  vat: 349.52 },
+  { week: "Week 3", invoices: 15, revenue: 6100,  vat: 290.48 },
+  { week: "Week 4", invoices: 22, revenue: 9210,  vat: 438.57 },
+];
+
+/* ─── Donut chart helper ─── */
+const DonutChart = ({ segments, size = 180, stroke = 32, children }) => {
+  const r     = (size - stroke) / 2;
+  const circ  = 2 * Math.PI * r;
+  const cx    = size / 2;
+  const cy    = size / 2;
+
+  let offset = 0;
+  return (
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)", display:"block" }}>
+      {/* background track */}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f0dfe4" strokeWidth={stroke} />
+      {segments.map((seg, i) => {
+        const dash = (seg.pct / 100) * circ;
+        const el = (
+          <circle
+            key={i}
+            cx={cx} cy={cy} r={r}
+            fill="none"
+            stroke={seg.color}
+            strokeWidth={stroke}
+            strokeDasharray={`${dash} ${circ - dash}`}
+            strokeDashoffset={-offset * circ / 100}
+            strokeLinecap="round"
+            style={{ transition: "stroke-dasharray 0.6s ease" }}
+          />
+        );
+        offset += seg.pct;
+        return el;
+      })}
+      {children && (
+        <foreignObject x={stroke/2} y={stroke/2} width={size-stroke} height={size-stroke}>
+          <div style={{
+            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+            width:"100%", height:"100%", transform:"rotate(90deg)"
+          }}>
+            {children}
+          </div>
+        </foreignObject>
+      )}
+    </svg>
+  );
+};
+
+/* ─── Bar chart (monthly weeks) ─── */
+const BarChart = ({ data, color = "#c00026" }) => {
+  const max = Math.max(...data.map(d => d.value));
+  return (
+    <div className="bar-chart">
+      {data.map((d, i) => (
+        <div key={i} className="bar-item">
+          <div className="bar-wrap">
+            <div
+              className="bar-fill"
+              style={{
+                height: `${(d.value / max) * 100}%`,
+                background: color,
+                opacity: 0.7 + (i / data.length) * 0.3
+              }}
+            />
+          </div>
+          <div className="bar-label">{d.label}</div>
+          <div className="bar-value">AED {d.value.toLocaleString()}</div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════ */
 const Dashboard = () => {
-  const navigate = useNavigate();
-
-  const [invoiceDetails, setInvoiceDetails] = useState({
-    invNo: "",
-    date: new Date().toISOString().split("T")[0],
-    customerName: "",
-    location: "",
-    contactNo: "",
-    brandName: "",
-    model: "",
-    totalCntr: "",
-    contract: "",
-    customerTrn: "",
-    dnNo: "",
-    dnDate: "",
-    srNo: "",
-    srDate: "",
-    lpoNo: "",
-    lpoDate: "",
-    note: "",
-    paymentCash: false,
-    paymentCheque: false,
-    discount: "",
+  const today = new Date().toLocaleDateString("en-AE", {
+    weekday:"long", year:"numeric", month:"long", day:"numeric"
   });
 
-  const [products, setProducts] = useState([
-    { id: 1, name: "", quantity: "", price: "", vat: 0, total: 0 },
-  ]);
+  /* Daily calcs */
+  const dayRevenue = DAILY_INVOICES.reduce((s, i) => s + i.grand, 0);
+  const dayVat     = DAILY_INVOICES.reduce((s, i) => s + i.vat,   0);
+  const dayItems   = DAILY_INVOICES.reduce((s, i) => s + i.items, 0);
+  const cashAmt    = DAILY_INVOICES.filter(i => i.payment==="Cash").reduce((s,i)=>s+i.grand,0);
+  const chequeAmt  = DAILY_INVOICES.filter(i => i.payment==="Cheque").reduce((s,i)=>s+i.grand,0);
+  const cashPct    = Math.round((cashAmt / dayRevenue) * 100) || 0;
+  const chequePct  = 100 - cashPct;
 
-  const [subTotal, setSubTotal] = useState(0);
-  const [totalVat, setTotalVat] = useState(0);
-  const [grandTotal, setGrandTotal] = useState(0);
-
-  useEffect(() => {
-    let sub = 0;
-    let vat = 0;
-    products.forEach((p) => {
-      const line = Number(p.quantity) * Number(p.price);
-      sub += line;
-      vat += line * 0.05;
-    });
-    const discount = Number(invoiceDetails.discount) || 0;
-    setSubTotal(sub);
-    setTotalVat(vat);
-    setGrandTotal(sub + vat - discount);
-  }, [products, invoiceDetails.discount]);
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setInvoiceDetails((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const updateProduct = (id, field, value) => {
-    setProducts(
-      products.map((p) => {
-        if (p.id === id) {
-          const updated = { ...p, [field]: value };
-          const qty = Number(field === "quantity" ? value : updated.quantity);
-          const price = Number(field === "price" ? value : updated.price);
-          updated.total = qty * price;
-          updated.vat = updated.total * 0.05;
-          return updated;
-        }
-        return p;
-      })
-    );
-  };
-
-  const addProductRow = () => {
-    setProducts([
-      ...products,
-      { id: Date.now(), name: "", quantity: "", price: "", vat: 0, total: 0 },
-    ]);
-  };
-
-  const removeProductRow = (id) => {
-    if (products.length > 1) setProducts(products.filter((p) => p.id !== id));
-  };
-
-  const handlePrint = () => window.print();
-
-  const EMPTY_ROWS = 13; // total item rows in the printed invoice
+  /* Monthly calcs */
+  const monRevenue = MONTHLY_WEEKS.reduce((s,w) => s + w.revenue, 0);
+  const monVat     = MONTHLY_WEEKS.reduce((s,w) => s + w.vat,     0);
+  const monInv     = MONTHLY_WEEKS.reduce((s,w) => s + w.invoices, 0);
+  const maxWeek    = Math.max(...MONTHLY_WEEKS.map(w=>w.revenue));
+  const week1Pct   = Math.round((MONTHLY_WEEKS[0].revenue / monRevenue)*100);
+  const week2Pct   = Math.round((MONTHLY_WEEKS[1].revenue / monRevenue)*100);
+  const week3Pct   = Math.round((MONTHLY_WEEKS[2].revenue / monRevenue)*100);
+  const week4Pct   = 100 - week1Pct - week2Pct - week3Pct;
 
   return (
-    <div className="dashboard-container">
-      {/* ── SIDEBAR ── */}
-      <div className="dashboard-sidebar">
-        <div className="sidebar-brand">
-          <img src="/logo.png" alt="logo" className="sidebar-logo" />
-          <span>IMAGE OFFICE</span>
-        </div>
-        <div className="sidebar-menu">
-          <button className="active">📄 Create Invoice</button>
-          <button>
-            <BarChart3 size={16} /> Daily Report
-          </button>
-          <button className="logout-btn" onClick={() => navigate("/")}>
-            <LogOut size={16} /> Logout
-          </button>
-        </div>
-      </div>
+    <div className="page-layout">
+      <Sidebar />
 
-      {/* ── MAIN ENTRY FORM ── */}
-      <div className="dashboard-main">
-        <h2 className="section-title">Tax Invoice Entry</h2>
+      <div className="page-main">
 
-        {/* Customer & Invoice Info */}
-        <div className="card entry-grid">
-          <div className="form-group">
-            <label>Invoice No.</label>
-            <input name="invNo" value={invoiceDetails.invNo} onChange={handleInputChange} placeholder="INV-001" />
+        {/* ── Header ── */}
+        <div className="page-header">
+          <div>
+            <h2 className="page-title">Analytics Dashboard</h2>
+            <p className="page-subtitle">{today}</p>
           </div>
-          <div className="form-group">
-            <label>Date</label>
-            <input type="date" name="date" value={invoiceDetails.date} onChange={handleInputChange} />
-          </div>
-          <div className="form-group">
-            <label>Customer TRN</label>
-            <input name="customerTrn" value={invoiceDetails.customerTrn} onChange={handleInputChange} placeholder="Customer TRN" />
-          </div>
-          <div className="form-group span-3">
-            <label>Customer Name</label>
-            <input name="customerName" value={invoiceDetails.customerName} onChange={handleInputChange} placeholder="Full customer name" />
-          </div>
-          <div className="form-group span-2">
-            <label>Area / Location</label>
-            <input name="location" value={invoiceDetails.location} onChange={handleInputChange} placeholder="Area / City" />
-          </div>
-          <div className="form-group">
-            <label>Contact No</label>
-            <input name="contactNo" value={invoiceDetails.contactNo} onChange={handleInputChange} placeholder="Phone" />
-          </div>
-          <div className="form-group">
-            <label>Brand Name</label>
-            <input name="brandName" value={invoiceDetails.brandName} onChange={handleInputChange} placeholder="Brand" />
-          </div>
-          <div className="form-group">
-            <label>Model</label>
-            <input name="model" value={invoiceDetails.model} onChange={handleInputChange} placeholder="Model" />
-          </div>
-          <div className="form-group">
-            <label>Total Cntr</label>
-            <input name="totalCntr" value={invoiceDetails.totalCntr} onChange={handleInputChange} placeholder="Counter" />
-          </div>
-          <div className="form-group span-3">
-            <label>Contract</label>
-            <input name="contract" value={invoiceDetails.contract} onChange={handleInputChange} placeholder="Contract details" />
-          </div>
+          <div className="da-badge">👑 Admin View</div>
         </div>
 
-        {/* Reference Numbers */}
-        <div className="card ref-entry-grid">
-          <div className="form-group">
-            <label>D.N No</label>
-            <input name="dnNo" value={invoiceDetails.dnNo} onChange={handleInputChange} placeholder="D.N No" />
-          </div>
-          <div className="form-group">
-            <label>D.N Date</label>
-            <input type="date" name="dnDate" value={invoiceDetails.dnDate} onChange={handleInputChange} />
-          </div>
-          <div className="form-group">
-            <label>S.R No</label>
-            <input name="srNo" value={invoiceDetails.srNo} onChange={handleInputChange} placeholder="S.R No" />
-          </div>
-          <div className="form-group">
-            <label>S.R Date</label>
-            <input type="date" name="srDate" value={invoiceDetails.srDate} onChange={handleInputChange} />
-          </div>
-          <div className="form-group">
-            <label>L.P.O No</label>
-            <input name="lpoNo" value={invoiceDetails.lpoNo} onChange={handleInputChange} placeholder="L.P.O No" />
-          </div>
-          <div className="form-group">
-            <label>L.P.O Date</label>
-            <input type="date" name="lpoDate" value={invoiceDetails.lpoDate} onChange={handleInputChange} />
-          </div>
-        </div>
-
-        {/* Products */}
-        <div className="card">
-          <h3 className="products-heading">Products — VAT 5% Auto Applied</h3>
-          <table className="products-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Particulars</th>
-                <th>Qty</th>
-                <th>Rate (AED)</th>
-                <th>VAT 5%</th>
-                <th>Total</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((p, i) => (
-                <tr key={p.id}>
-                  <td className="row-num">{i + 1}</td>
-                  <td>
-                    <input value={p.name} onChange={(e) => updateProduct(p.id, "name", e.target.value)} placeholder="Item description" />
-                  </td>
-                  <td>
-                    <input type="number" min="0" value={p.quantity} onChange={(e) => updateProduct(p.id, "quantity", e.target.value)} placeholder="0" />
-                  </td>
-                  <td>
-                    <input type="number" min="0" value={p.price} onChange={(e) => updateProduct(p.id, "price", e.target.value)} placeholder="0.00" />
-                  </td>
-                  <td className="calc-cell">{p.vat > 0 ? p.vat.toFixed(2) : "—"}</td>
-                  <td className="calc-cell">{p.total > 0 ? p.total.toFixed(2) : "—"}</td>
-                  <td>
-                    <button onClick={() => removeProductRow(p.id)} className="btn-danger">
-                      <Trash2 size={13} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button className="btn-secondary add-row-btn" onClick={addProductRow}>
-            <Plus size={15} /> Add Item
-          </button>
-        </div>
-
-        {/* Totals + Note */}
-        <div className="card totals-entry">
-          <div className="note-group">
-            <label>Note</label>
-            <textarea name="note" value={invoiceDetails.note} onChange={handleInputChange} rows={3} placeholder="Any note for this invoice..." />
-          </div>
-          <div className="totals-summary">
-            <div className="total-line">
-              <span>Without VAT</span><span>AED {subTotal.toFixed(2)}</span>
+        {/* ── Top stat cards ── */}
+        <div className="da-stats-row">
+          <div className="da-stat-card">
+            <div className="da-stat-icon" style={{background:"#fff0f2",color:"#c00026"}}>💰</div>
+            <div>
+              <div className="da-stat-value">AED {dayRevenue.toFixed(2)}</div>
+              <div className="da-stat-label">Today's Revenue</div>
             </div>
-            <div className="total-line pink">
-              <span>VAT @ 5%</span><span>AED {totalVat.toFixed(2)}</span>
+          </div>
+          <div className="da-stat-card">
+            <div className="da-stat-icon" style={{background:"#f0fff6",color:"#2a7d4f"}}>📦</div>
+            <div>
+              <div className="da-stat-value">{dayItems}</div>
+              <div className="da-stat-label">Products Sold Today</div>
             </div>
-            <div className="total-line">
-              <span>Discount</span>
-              <input type="number" name="discount" value={invoiceDetails.discount} onChange={handleInputChange} placeholder="0.00" className="discount-input" />
+          </div>
+          <div className="da-stat-card">
+            <div className="da-stat-icon" style={{background:"#fff8ed",color:"#d4820a"}}>🏛️</div>
+            <div>
+              <div className="da-stat-value">AED {dayVat.toFixed(2)}</div>
+              <div className="da-stat-label">VAT Collected Today</div>
             </div>
-            <div className="total-line pink bold">
-              <span>G. Total</span><span>AED {grandTotal.toFixed(2)}</span>
+          </div>
+          <div className="da-stat-card">
+            <div className="da-stat-icon" style={{background:"#f5f0ff",color:"#7c3aed"}}>📈</div>
+            <div>
+              <div className="da-stat-value">AED {monRevenue.toLocaleString()}</div>
+              <div className="da-stat-label">Monthly Revenue</div>
             </div>
           </div>
         </div>
 
-        {/* Payment + Actions */}
-        <div className="card payment-actions-row">
-          <div className="payment-check-group">
-            <span>Payment:</span>
-            <label><input type="checkbox" name="paymentCash" checked={invoiceDetails.paymentCash} onChange={handleInputChange} /> Cash</label>
-            <label><input type="checkbox" name="paymentCheque" checked={invoiceDetails.paymentCheque} onChange={handleInputChange} /> Cheque</label>
-          </div>
-          <div className="actions-group">
-            <button className="btn-secondary"><Save size={16} /> Save Record</button>
-            <button className="btn-primary" onClick={handlePrint}><Printer size={16} /> Print A4 Invoice</button>
-          </div>
-        </div>
-      </div>
+        {/* ── Charts row ── */}
+        <div className="da-charts-row">
 
-      {/* ════════════════════════════════════════════
-          PRINTABLE A4 INVOICE — hidden on screen
-          ════════════════════════════════════════════ */}
-      <div className="printable-invoice" id="printable">
-
-        {/* Left brand strip */}
-        <div className="brand-strip">
-          {["Canon", "RICOH", "KYOCERa neshuatech", "Panasonic", "SHARP", "KONICA MINOLTA", "TOSHIBA", "hp HEWLETT PACKARD", "DEVELOP", "brother"].map((b, i) => (
-            <span key={i}>{b}</span>
-          ))}
-        </div>
-
-        {/* Main invoice body */}
-        <div className="inv-body">
-
-          {/* ── HEADER ── */}
-          <div className="inv-header">
-            <div className="inv-logo-block">
-              <img src="/logo.png" alt="logo" className="inv-logo" />
-              <div className="logo-sub">
-                <div>PHOTOCOPIER MAINT</div>
-                <div>&amp; STATIONERY EST.</div>
-              </div>
+          {/* Daily donut */}
+          <div className="da-chart-card">
+            <div className="da-chart-title">
+              📅 Daily Payment Split
+              <span className="da-chart-sub">Today's invoices</span>
             </div>
 
-            <div className="inv-company-info">
-              <div className="company-arabic-name">
-                إيـمـاج اوفـيـس سـيـلـوشـن لاصلاح الالات ومعدات النسخ والقرطاسية
-              </div>
-              <div className="company-details-line">
-                تلفون: ٧٩٣-٣٢٥١-٠٥٠ - ٤٣١-٧٤٣٢-٠٥٠ - فاكس: ٣٩٧-٧٢١٣-٠٣ - ص.ب: ٨٥٢٠٧ - الصناعية - العين - الإ.ع.م.
-              </div>
-              <div className="company-details-line">
-                Tel.: 050-3251793 - 050-7432431 &nbsp;·&nbsp; Fax: 03-7213397 &nbsp;·&nbsp; P.O.Box: 85207 - Industrial Area - Al Ain - U.A.E.
-              </div>
-              <div className="company-details-line">
-                e - m a i l : &nbsp; i m a g e a l a i n @ g m a i l . c o m
-              </div>
-            </div>
-          </div>
+            <div className="da-donut-wrap">
+              <DonutChart
+                size={180} stroke={30}
+                segments={[
+                  { pct: cashPct,   color: "#c00026" },
+                  { pct: chequePct, color: "#edb9c7" },
+                ]}
+              >
+                <div style={{fontWeight:700,fontSize:22,color:"#c00026",lineHeight:1}}>{DAILY_INVOICES.length}</div>
+                <div style={{fontSize:11,color:"#999",marginTop:2}}>Invoices</div>
+              </DonutChart>
 
-          {/* ── TAX INVOICE TITLE ── */}
-          <div className="inv-title-row">
-            <span className="inv-title-arabic">فاتورة ضريبية</span>
-            <span className="inv-title-eng">TAX INVOICE</span>
-          </div>
-
-          {/* ── TRN ROW ── */}
-          <div className="trn-row">
-            <div className="trn-left">TRN: 100335760300003</div>
-            <div className="trn-right">
-              <span className="trn-label">Customer TRN:</span>
-              <div className="trn-boxes">
-                {Array.from({ length: 15 }).map((_, i) => (
-                  <div className="trn-box" key={i}>
-                    {invoiceDetails.customerTrn?.[i] || ""}
+              <div className="da-legend">
+                <div className="da-legend-item">
+                  <span className="da-dot" style={{background:"#c00026"}}/>
+                  <div>
+                    <div className="da-leg-label">Cash</div>
+                    <div className="da-leg-val">AED {cashAmt.toFixed(2)} <em>({cashPct}%)</em></div>
                   </div>
-                ))}
+                </div>
+                <div className="da-legend-item">
+                  <span className="da-dot" style={{background:"#edb9c7"}}/>
+                  <div>
+                    <div className="da-leg-label">Cheque</div>
+                    <div className="da-leg-val">AED {chequeAmt.toFixed(2)} <em>({chequePct}%)</em></div>
+                  </div>
+                </div>
+                <div className="da-legend-item">
+                  <span className="da-dot" style={{background:"#f5f0ff"}}/>
+                  <div>
+                    <div className="da-leg-label">Items Sold</div>
+                    <div className="da-leg-val">{dayItems} products</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* ── CUSTOMER INFO GRID ── */}
-          <table className="info-table">
-            <tbody>
-              <tr>
-                <td className="info-cell" style={{ width: "50%" }}>
-                  Inv. No. : <strong>{invoiceDetails.invNo}</strong>
-                </td>
-                <td className="info-cell">
-                  Date: <strong>{invoiceDetails.date}</strong>
-                </td>
-              </tr>
-              <tr>
-                <td className="info-cell" colSpan={2}>
-                  Customer Name: <strong>{invoiceDetails.customerName}</strong>
-                </td>
-              </tr>
-              <tr>
-                <td className="info-cell">
-                  Area/Location: <strong>{invoiceDetails.location}</strong>
-                </td>
-                <td className="info-cell">
-                  Contact No: <strong>{invoiceDetails.contactNo}</strong>
-                </td>
-              </tr>
-              <tr>
-                <td className="info-cell" style={{ width: "40%" }}>
-                  Brand Name: <strong>{invoiceDetails.brandName}</strong>
-                </td>
-                <td className="info-cell" style={{ width: "30%" }}>
-                  Model: <strong>{invoiceDetails.model}</strong>
-                </td>
-                <td className="info-cell">
-                  Total Cntr: <strong>{invoiceDetails.totalCntr}</strong>
-                </td>
-              </tr>
-              <tr>
-                <td className="info-cell" colSpan={2}>
-                  Contract: <strong>{invoiceDetails.contract}</strong>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          {/* Monthly donut */}
+          <div className="da-chart-card">
+            <div className="da-chart-title">
+              📆 Monthly Week Breakdown
+              <span className="da-chart-sub">{monInv} invoices this month</span>
+            </div>
 
-          {/* ── REFERENCE TABLE (D.N / S.R / L.P.O) ── */}
-          <table className="ref-table">
-            <tbody>
-              <tr>
-                <td className="ref-cell">D.N No: <strong>{invoiceDetails.dnNo}</strong></td>
-                <td className="ref-cell">S.R No: <strong>{invoiceDetails.srNo}</strong></td>
-                <td className="ref-cell">L.P.O No: <strong>{invoiceDetails.lpoNo}</strong></td>
-              </tr>
-              <tr>
-                <td className="ref-cell">Date: <strong>{invoiceDetails.dnDate}</strong></td>
-                <td className="ref-cell">Date: <strong>{invoiceDetails.srDate}</strong></td>
-                <td className="ref-cell">Date: <strong>{invoiceDetails.lpoDate}</strong></td>
-              </tr>
-            </tbody>
-          </table>
+            <div className="da-donut-wrap">
+              <DonutChart
+                size={180} stroke={30}
+                segments={[
+                  { pct: week1Pct, color: "#c00026" },
+                  { pct: week2Pct, color: "#e07090" },
+                  { pct: week3Pct, color: "#edb9c7" },
+                  { pct: week4Pct, color: "#f5d5df" },
+                ]}
+              >
+                <div style={{fontWeight:700,fontSize:20,color:"#c00026",lineHeight:1}}>
+                  {monInv}
+                </div>
+                <div style={{fontSize:11,color:"#999",marginTop:2}}>Total Inv.</div>
+              </DonutChart>
 
-          {/* ── ITEMS TABLE ── */}
-          <table className="items-table">
-            <thead>
-              <tr className="items-header">
-                <th className="col-no">
-                  <div>الرقم</div>
-                  <div>No.</div>
-                </th>
-                <th className="col-particulars">
-                  <div>التفاصيل</div>
-                  <div>Particulars</div>
-                </th>
-                <th className="col-qty">
-                  <div>العدد</div>
-                  <div>Qty.</div>
-                </th>
-                <th className="col-rate">
-                  <div>سعر الوحدة</div>
-                  <div>Rate</div>
-                </th>
-                <th className="col-vat">
-                  <div>الضريبة</div>
-                  <div>VAT(5%)</div>
-                </th>
-                <th className="col-total">
-                  <div>المبلغ الاجمالي</div>
-                  <div>Total Amount</div>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((p, i) => (
-                <tr key={p.id} className={i % 2 === 1 ? "row-pink" : ""}>
-                  <td className="col-no">{i + 1}</td>
-                  <td className="col-particulars text-left">{p.name}</td>
-                  <td className="col-qty">{p.quantity}</td>
-                  <td className="col-rate">{p.price ? Number(p.price).toFixed(2) : ""}</td>
-                  <td className="col-vat">{p.vat > 0 ? p.vat.toFixed(2) : ""}</td>
-                  <td className="col-total">{p.total > 0 ? p.total.toFixed(2) : ""}</td>
-                </tr>
-              ))}
-              {Array.from({ length: Math.max(0, EMPTY_ROWS - products.length) }).map((_, i) => (
-                <tr key={`e-${i}`} className={(products.length + i) % 2 === 1 ? "row-pink empty-row" : "empty-row"}>
-                  <td></td><td></td><td></td><td></td><td></td><td></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* ── FOOTER SECTION ── */}
-          <table className="footer-table">
-            <tbody>
-              <tr>
-                {/* Note + Total Dhs */}
-                <td className="footer-left" rowSpan={4}>
-                  <div className="note-line">Note: <span>{invoiceDetails.note}</span></div>
-                </td>
-                <td className="footer-label">Without VAT</td>
-                <td className="footer-value">{subTotal.toFixed(2)}</td>
-              </tr>
-              <tr>
-                <td className="footer-label footer-pink">VAT @5%</td>
-                <td className="footer-value footer-pink">{totalVat.toFixed(2)}</td>
-              </tr>
-              <tr>
-                <td className="footer-label">Discount</td>
-                <td className="footer-value">{invoiceDetails.discount ? Number(invoiceDetails.discount).toFixed(2) : ""}</td>
-              </tr>
-              <tr>
-                <td className="footer-label footer-pink">G. total</td>
-                <td className="footer-value footer-pink"><strong>{grandTotal.toFixed(2)}</strong></td>
-              </tr>
-              {/* Total Dhs row */}
-              <tr>
-                <td className="footer-total-dhs" colSpan={1}>
-                  Total Dhs. <strong>{grandTotal.toFixed(2)}</strong>
-                </td>
-                <td className="footer-label">Discount</td>
-                <td className="footer-value"></td>
-              </tr>
-            </tbody>
-          </table>
-
-          {/* ── PAYMENT ROW ── */}
-          <div className="payment-row">
-            <span className="payment-desc-label">Payment Description</span>
-            <span className="payment-opt">
-              Cash: <span className="checkbox-box">{invoiceDetails.paymentCash ? "✓" : ""}</span>
-            </span>
-            <span className="payment-opt">
-              Cheque: <span className="checkbox-box">{invoiceDetails.paymentCheque ? "✓" : ""}</span>
-            </span>
+              <div className="da-legend">
+                {MONTHLY_WEEKS.map((w, i) => {
+                  const colors = ["#c00026","#e07090","#edb9c7","#f5d5df"];
+                  const pcts   = [week1Pct, week2Pct, week3Pct, week4Pct];
+                  return (
+                    <div key={i} className="da-legend-item">
+                      <span className="da-dot" style={{background: colors[i]}}/>
+                      <div>
+                        <div className="da-leg-label">{w.week} — {w.invoices} inv.</div>
+                        <div className="da-leg-val">AED {w.revenue.toLocaleString()} <em>({pcts[i]}%)</em></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          {/* ── SIGNATURE ROW ── */}
-          <div className="signature-row">
-            <span>Customer Signature: ___________________________</span>
-            <span>For Image Office Solutions</span>
+          {/* Monthly bar chart */}
+          <div className="da-chart-card da-bar-card">
+            <div className="da-chart-title">
+              📊 Monthly Revenue Bars
+              <span className="da-chart-sub">Week-by-week breakdown</span>
+            </div>
+            <BarChart
+              data={MONTHLY_WEEKS.map(w => ({ label: w.week, value: w.revenue }))}
+              color="#c00026"
+            />
+            <div className="da-bar-total">
+              Total: <strong>AED {monRevenue.toLocaleString()}</strong>
+              &nbsp;·&nbsp; VAT: <strong>AED {monVat.toFixed(2)}</strong>
+            </div>
           </div>
+        </div>
 
-        </div>{/* /inv-body */}
-      </div>{/* /printable-invoice */}
+        {/* ── Recent Invoices ── */}
+        <div className="card">
+          <div className="da-table-header">
+            <h3 className="products-heading" style={{margin:0}}>📋 Today's Invoices</h3>
+            <span className="da-inv-count">{DAILY_INVOICES.length} records</span>
+          </div>
+          <div className="table-scroll" style={{marginTop:14}}>
+            <table className="products-table">
+              <thead>
+                <tr>
+                  <th>Inv. No</th>
+                  <th>Customer</th>
+                  <th>Items</th>
+                  <th>Without VAT</th>
+                  <th>VAT (5%)</th>
+                  <th>Grand Total</th>
+                  <th>Payment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {DAILY_INVOICES.map((inv, i) => (
+                  <tr key={i}>
+                    <td style={{fontWeight:600,color:"#c00026"}}>{inv.invNo}</td>
+                    <td>{inv.customer}</td>
+                    <td style={{textAlign:"center"}}>{inv.items}</td>
+                    <td>AED {inv.total.toFixed(2)}</td>
+                    <td>AED {inv.vat.toFixed(2)}</td>
+                    <td style={{fontWeight:700}}>AED {inv.grand.toFixed(2)}</td>
+                    <td>
+                      <span style={{
+                        background: inv.payment==="Cash"?"#f0fff6":"#f0f4ff",
+                        color:      inv.payment==="Cash"?"#2a7d4f":"#3a5fd9",
+                        padding:"3px 10px", borderRadius:20, fontSize:12, fontWeight:600
+                      }}>{inv.payment}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{background:"#fce4ec",fontWeight:700}}>
+                  <td colSpan={2}>Total</td>
+                  <td style={{textAlign:"center"}}>{dayItems}</td>
+                  <td>AED {DAILY_INVOICES.reduce((s,i)=>s+i.total,0).toFixed(2)}</td>
+                  <td>AED {dayVat.toFixed(2)}</td>
+                  <td>AED {dayRevenue.toFixed(2)}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 };
