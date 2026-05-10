@@ -110,6 +110,61 @@ button[type="submit"],
   background: #d1e7dd;
 }
 
+.report-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.report-tabs button {
+  border-color: #d7e0ef;
+  color: #40506a;
+  background: #ffffff;
+}
+
+.report-tabs button.active {
+  border-color: #1462ff;
+  color: #ffffff;
+  background: #1462ff;
+}
+
+.report-view {
+  display: grid;
+  gap: 18px;
+}
+
+.report-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.report-toolbar label {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+  color: #5e6b81;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.report-metrics {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  margin-bottom: 0;
+}
+
+.report-note {
+  color: #5e6b81;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.empty-state {
+  padding: 22px 8px;
+  color: #718096;
+  text-align: center;
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(160px, 1fr));
@@ -148,6 +203,10 @@ button[type="submit"],
   align-items: start;
 }
 
+.workspace.admin-workspace {
+  grid-template-columns: 1fr;
+}
+
 .panel {
   padding: 18px;
 }
@@ -172,11 +231,15 @@ button[type="submit"],
 }
 
 .product-form {
-  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
 }
 
 .product-form button {
-  grid-column: span 2;
+  grid-column: span 3;
+}
+
+.product-search {
+  margin-bottom: 14px;
 }
 
 input,
@@ -309,9 +372,14 @@ td small {
   }
 
   .topbar,
-  .user-box {
+  .user-box,
+  .report-toolbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .report-toolbar label {
+    width: 100%;
   }
 
   .product-form,

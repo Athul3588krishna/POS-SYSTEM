@@ -3,13 +3,21 @@ const Product = require("../models/Product");
 // CREATE PRODUCT
 exports.createProduct = async (req, res) => {
   try {
-    const { name, price, stock = 0, vatApplicable = true, category = "General" } = req.body;
+    const {
+      name,
+      price,
+      stock = 0,
+      vatApplicable = true,
+      category = "General",
+      serialNumber = "",
+      warrantyMonths = 0
+    } = req.body;
 
     if (!name || price == null) {
       return res.status(400).json({ message: "Name and price are required" });
     }
 
-    if (Number(price) < 0 || Number(stock) < 0) {
+    if (Number(price) < 0 || Number(stock) < 0 || Number(warrantyMonths) < 0) {
       return res.status(400).json({ message: "Invalid price or stock" });
     }
 
@@ -18,7 +26,9 @@ exports.createProduct = async (req, res) => {
       price: Number(price),
       stock: Number(stock),
       vatApplicable: Boolean(vatApplicable),
-      category
+      category,
+      serialNumber,
+      warrantyMonths: Number(warrantyMonths) || 0
     });
 
     res.status(201).json(product);
@@ -64,6 +74,10 @@ exports.updateProduct = async (req, res) => {
 
     if (req.body.stock != null && Number(req.body.stock) < 0) {
       return res.status(400).json({ message: "Invalid stock" });
+    }
+
+    if (req.body.warrantyMonths != null && Number(req.body.warrantyMonths) < 0) {
+      return res.status(400).json({ message: "Invalid warranty period" });
     }
 
     const updated = await Product.findByIdAndUpdate(

@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 const readSession = () => {
   try {
-    return JSON.parse(localStorage.getItem("pos-session")) || null;
+    return JSON.parse(sessionStorage.getItem("pos-session")) || null;
   } catch {
     return null;
   }
@@ -81,11 +81,13 @@ function App() {
       return payload;
     });
 
-    localStorage.setItem("pos-session", JSON.stringify(data));
+    sessionStorage.setItem("pos-session", JSON.stringify(data));
+    localStorage.removeItem("pos-session");
     setSession(data);
   };
 
   const logout = () => {
+    sessionStorage.removeItem("pos-session");
     localStorage.removeItem("pos-session");
     setSession(null);
     setProducts([]);

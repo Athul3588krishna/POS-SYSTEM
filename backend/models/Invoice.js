@@ -17,12 +17,15 @@ const invoiceSchema = new mongoose.Schema({
 	        type: mongoose.Schema.Types.ObjectId,
 	        ref: "Product"
 	      },
-	      name: String,
-	      qty: Number,
-	      rate: Number,
-      vat: Number,
-      total: Number
-    }
+		      name: String,
+		      qty: Number,
+		      rate: Number,
+		      serialNumber: String,
+		      warrantyMonths: Number,
+		      warrantyUntil: Date,
+	      vat: Number,
+	      total: Number
+	    }
   ],
 
   subtotal: Number,
