@@ -24,6 +24,18 @@ const productSchema = new mongoose.Schema({
     default: "General"
   },
 
+  serialNumber: {
+    type: String,
+    trim: true,
+    default: ""
+  },
+
+  warrantyMonths: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+
   vatApplicable: {
     type: Boolean,
     default: true

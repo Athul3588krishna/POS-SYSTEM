@@ -2,6 +2,12 @@ const Invoice = require("../models/Invoice");
 const Product = require("../models/Product");
 const { calculateInvoice } = require("../utils/calc");
 
+const addMonths = (date, months) => {
+  const warrantyUntil = new Date(date);
+  warrantyUntil.setMonth(warrantyUntil.getMonth() + months);
+  return warrantyUntil;
+};
+
 exports.createInvoice = async (req, res) => {
   try {
     const { items = [], customer = {}, discount = 0, paymentMethod = "Cash" } = req.body;
@@ -11,6 +17,7 @@ exports.createInvoice = async (req, res) => {
     }
 
     const invoiceItems = [];
+    const invoiceDate = new Date();
 
     for (const item of items) {
       const product = await Product.findById(item.productId);
@@ -35,6 +42,9 @@ exports.createInvoice = async (req, res) => {
         name: product.name,
         qty,
         rate: product.price,
+        serialNumber: product.serialNumber || "",
+        warrantyMonths: Number(product.warrantyMonths) || 0,
+        warrantyUntil: product.warrantyMonths ? addMonths(invoiceDate, Number(product.warrantyMonths)) : null,
         vatApplicable: product.vatApplicable
       });
     }
@@ -49,7 +59,7 @@ exports.createInvoice = async (req, res) => {
 
     const invoice = await Invoice.create({
       invoiceNumber: "INV-" + Date.now(),
-      date: new Date(),
+      date: invoiceDate,
       customer,
       ...calc,
       paymentMethod
