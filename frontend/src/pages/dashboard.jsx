@@ -13,7 +13,7 @@ const escapeHtml = (value = "") =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 
-const invoiceHtml = (invoice) => {
+const buildInvoiceHtml = (invoice) => {
   const rows = (invoice.items || []).map((item) => `
     <tr>
       <td>${escapeHtml(item.name)}</td>
@@ -60,26 +60,17 @@ const invoiceHtml = (invoice) => {
               <p>Payment: ${escapeHtml(invoice.paymentMethod || "Cash")}</p>
             </div>
           </section>
-
           <section>
             <h2>Bill To</h2>
             <p>${escapeHtml(invoice.customer?.name || "Walk-in Customer")}</p>
             <p class="muted">${escapeHtml(invoice.customer?.contact || "")}</p>
           </section>
-
           <table>
             <thead>
-              <tr>
-                <th>Item</th>
-                <th>Qty</th>
-                <th>Rate</th>
-                <th>VAT</th>
-                <th>Total</th>
-              </tr>
+              <tr><th>Item</th><th>Qty</th><th>Rate</th><th>VAT</th><th>Total</th></tr>
             </thead>
             <tbody>${rows}</tbody>
           </table>
-
           <section class="totals">
             <div class="line"><span>Subtotal</span><strong>${currency.format(invoice.subtotal || 0)}</strong></div>
             <div class="line"><span>VAT</span><strong>${currency.format(invoice.vatTotal || 0)}</strong></div>
@@ -101,7 +92,7 @@ const downloadInvoicePdf = (invoice) => {
   }
 
   printWindow.document.open();
-  printWindow.document.write(invoiceHtml(invoice));
+  printWindow.document.write(buildInvoiceHtml(invoice));
   printWindow.document.close();
   printWindow.focus();
   printWindow.print();
@@ -198,6 +189,7 @@ const Dashboard = ({
       paymentMethod: invoiceForm.paymentMethod,
       items: cart
     });
+
     setLastInvoice(invoice);
     setCart([]);
     setInvoiceForm({
@@ -227,14 +219,8 @@ const Dashboard = ({
 
       {isAdmin && (
         <section className="metric-grid">
-          <article>
-            <span>Products</span>
-            <strong>{products.length}</strong>
-          </article>
-          <article>
-            <span>Invoices</span>
-            <strong>{invoices.length}</strong>
-          </article>
+          <article><span>Products</span><strong>{products.length}</strong></article>
+          <article><span>Invoices</span><strong>{invoices.length}</strong></article>
           <article>
             <span>Sales Total</span>
             <strong>{currency.format(invoices.reduce((sum, invoice) => sum + (invoice.grandTotal || 0), 0))}</strong>
@@ -250,39 +236,12 @@ const Dashboard = ({
 
           {isAdmin && (
             <form className="product-form" onSubmit={submitProduct}>
-              <input
-                placeholder="Product name"
-                value={productForm.name}
-                onChange={(event) => setProductForm({ ...productForm, name: event.target.value })}
-                required
-              />
-              <input
-                placeholder="Category"
-                value={productForm.category}
-                onChange={(event) => setProductForm({ ...productForm, category: event.target.value })}
-              />
-              <input
-                min="0"
-                placeholder="Price"
-                type="number"
-                value={productForm.price}
-                onChange={(event) => setProductForm({ ...productForm, price: event.target.value })}
-                required
-              />
-              <input
-                min="0"
-                placeholder="Stock"
-                type="number"
-                value={productForm.stock}
-                onChange={(event) => setProductForm({ ...productForm, stock: event.target.value })}
-                required
-              />
+              <input placeholder="Product name" value={productForm.name} onChange={(event) => setProductForm({ ...productForm, name: event.target.value })} required />
+              <input placeholder="Category" value={productForm.category} onChange={(event) => setProductForm({ ...productForm, category: event.target.value })} />
+              <input min="0" placeholder="Price" type="number" value={productForm.price} onChange={(event) => setProductForm({ ...productForm, price: event.target.value })} required />
+              <input min="0" placeholder="Stock" type="number" value={productForm.stock} onChange={(event) => setProductForm({ ...productForm, stock: event.target.value })} required />
               <label className="checkbox-line">
-                <input
-                  checked={productForm.vatApplicable}
-                  type="checkbox"
-                  onChange={(event) => setProductForm({ ...productForm, vatApplicable: event.target.checked })}
-                />
+                <input checked={productForm.vatApplicable} type="checkbox" onChange={(event) => setProductForm({ ...productForm, vatApplicable: event.target.checked })} />
                 VAT
               </label>
               <button type="submit">Add product</button>
@@ -292,31 +251,16 @@ const Dashboard = ({
           <div className="table-wrap">
             <table>
               <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Price</th>
-                  <th>Stock</th>
-                  <th>VAT</th>
-                  <th></th>
-                </tr>
+                <tr><th>Name</th><th>Price</th><th>Stock</th><th>VAT</th><th></th></tr>
               </thead>
               <tbody>
                 {products.map((product) => (
                   <tr key={product._id}>
-                    <td>
-                      <strong>{product.name}</strong>
-                      <small>{product.category}</small>
-                    </td>
+                    <td><strong>{product.name}</strong><small>{product.category}</small></td>
                     <td>{currency.format(product.price || 0)}</td>
                     <td>
                       {isAdmin ? (
-                        <input
-                          className="stock-input"
-                          min="0"
-                          type="number"
-                          value={product.stock}
-                          onChange={(event) => onUpdateProduct(product._id, { stock: Number(event.target.value) })}
-                        />
+                        <input className="stock-input" min="0" type="number" value={product.stock} onChange={(event) => onUpdateProduct(product._id, { stock: Number(event.target.value) })} />
                       ) : (
                         product.stock
                       )}
@@ -324,9 +268,7 @@ const Dashboard = ({
                     <td>{product.vatApplicable ? "Yes" : "No"}</td>
                     <td>
                       {isAdmin && (
-                        <button className="danger" type="button" onClick={() => onDeleteProduct(product._id)}>
-                          Delete
-                        </button>
+                        <button className="danger" type="button" onClick={() => onDeleteProduct(product._id)}>Delete</button>
                       )}
                     </td>
                   </tr>
@@ -339,59 +281,30 @@ const Dashboard = ({
         <section className="panel">
           <div className="panel-heading">
             <h2>Create Invoice</h2>
-            <button type="button" onClick={addCartItem} disabled={products.length === 0}>
-              Add item
-            </button>
+            <button type="button" onClick={addCartItem} disabled={products.length === 0}>Add item</button>
           </div>
 
           <form className="invoice-form" onSubmit={submitInvoice}>
             <div className="field-row">
-              <input
-                placeholder="Customer name"
-                value={invoiceForm.customerName}
-                onChange={(event) => setInvoiceForm({ ...invoiceForm, customerName: event.target.value })}
-              />
-              <input
-                placeholder="Contact"
-                value={invoiceForm.customerContact}
-                onChange={(event) => setInvoiceForm({ ...invoiceForm, customerContact: event.target.value })}
-              />
+              <input placeholder="Customer name" value={invoiceForm.customerName} onChange={(event) => setInvoiceForm({ ...invoiceForm, customerName: event.target.value })} />
+              <input placeholder="Contact" value={invoiceForm.customerContact} onChange={(event) => setInvoiceForm({ ...invoiceForm, customerContact: event.target.value })} />
             </div>
 
             {cart.map((item, index) => (
               <div className="cart-row" key={`${item.productId}-${index}`}>
-                <select
-                  value={item.productId}
-                  onChange={(event) => updateCartItem(index, { productId: event.target.value })}
-                >
+                <select value={item.productId} onChange={(event) => updateCartItem(index, { productId: event.target.value })}>
                   {products.map((product) => (
-                    <option key={product._id} value={product._id}>
-                      {product.name} ({product.stock} left)
-                    </option>
+                    <option key={product._id} value={product._id}>{product.name} ({product.stock} left)</option>
                   ))}
                 </select>
-                <input
-                  min="1"
-                  type="number"
-                  value={item.qty}
-                  onChange={(event) => updateCartItem(index, { qty: Number(event.target.value) })}
-                />
+                <input min="1" type="number" value={item.qty} onChange={(event) => updateCartItem(index, { qty: Number(event.target.value) })} />
                 <button type="button" onClick={() => removeCartItem(index)}>Remove</button>
               </div>
             ))}
 
             <div className="field-row">
-              <input
-                min="0"
-                type="number"
-                placeholder="Discount"
-                value={invoiceForm.discount}
-                onChange={(event) => setInvoiceForm({ ...invoiceForm, discount: event.target.value })}
-              />
-              <select
-                value={invoiceForm.paymentMethod}
-                onChange={(event) => setInvoiceForm({ ...invoiceForm, paymentMethod: event.target.value })}
-              >
+              <input min="0" type="number" placeholder="Discount" value={invoiceForm.discount} onChange={(event) => setInvoiceForm({ ...invoiceForm, discount: event.target.value })} />
+              <select value={invoiceForm.paymentMethod} onChange={(event) => setInvoiceForm({ ...invoiceForm, paymentMethod: event.target.value })}>
                 <option>Cash</option>
                 <option>Card</option>
                 <option>Bank Transfer</option>
@@ -413,9 +326,7 @@ const Dashboard = ({
                 <strong>{lastInvoice.invoiceNumber}</strong>
                 <span>{currency.format(lastInvoice.grandTotal || 0)}</span>
               </div>
-              <button type="button" onClick={() => downloadInvoicePdf(lastInvoice)}>
-                Download PDF
-              </button>
+              <button type="button" onClick={() => downloadInvoicePdf(lastInvoice)}>Download PDF</button>
             </div>
           )}
         </section>
@@ -429,14 +340,7 @@ const Dashboard = ({
           <div className="table-wrap">
             <table>
               <thead>
-                <tr>
-                  <th>Invoice</th>
-                  <th>Customer</th>
-                  <th>Items</th>
-                  <th>Total</th>
-                  <th>Date</th>
-                  <th></th>
-                </tr>
+                <tr><th>Invoice</th><th>Customer</th><th>Items</th><th>Total</th><th>Date</th><th></th></tr>
               </thead>
               <tbody>
                 {invoices.map((invoice) => (
@@ -446,11 +350,7 @@ const Dashboard = ({
                     <td>{invoice.items?.length || 0}</td>
                     <td>{currency.format(invoice.grandTotal || 0)}</td>
                     <td>{invoice.date ? new Date(invoice.date).toLocaleString() : ""}</td>
-                    <td>
-                      <button type="button" onClick={() => downloadInvoicePdf(invoice)}>
-                        PDF
-                      </button>
-                    </td>
+                    <td><button type="button" onClick={() => downloadInvoicePdf(invoice)}>PDF</button></td>
                   </tr>
                 ))}
               </tbody>

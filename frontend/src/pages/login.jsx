@@ -2,9 +2,7 @@ import { useState } from "react";
 import "./login.css";
 
 const Login = ({ onLogin }) => {
-  const [mode, setMode] = useState("login");
   const [form, setForm] = useState({
-    name: "",
     email: "",
     password: "",
     role: "staff"
@@ -19,13 +17,21 @@ const Login = ({ onLogin }) => {
     }));
   };
 
+  const fillDemo = (role) => {
+    setForm({
+      role,
+      email: role === "admin" ? "admin@pos.com" : "staff@pos.com",
+      password: role === "admin" ? "admin123" : "staff123"
+    });
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     setError("");
     setIsLoading(true);
 
     try {
-      await onLogin(mode, form);
+      await onLogin(form);
     } catch (err) {
       setError(err.message || "Authentication failed");
     } finally {
@@ -42,21 +48,9 @@ const Login = ({ onLogin }) => {
       </section>
 
       <section className="login-panel" aria-label="Authentication">
-        <div className="mode-switch">
-          <button
-            className={mode === "login" ? "active" : ""}
-            type="button"
-            onClick={() => setMode("login")}
-          >
-            Sign in
-          </button>
-          <button
-            className={mode === "register" ? "active" : ""}
-            type="button"
-            onClick={() => setMode("register")}
-          >
-            Register
-          </button>
+        <div className="login-title">
+          <h2>Sign in</h2>
+          <p>Use assigned admin or billing staff credentials.</p>
         </div>
 
         <form onSubmit={submit} className="login-form">
@@ -64,31 +58,18 @@ const Login = ({ onLogin }) => {
             <button
               className={form.role === "staff" ? "active" : ""}
               type="button"
-              onClick={() => setForm((current) => ({ ...current, role: "staff" }))}
+              onClick={() => fillDemo("staff")}
             >
               Billing Staff
             </button>
             <button
               className={form.role === "admin" ? "active" : ""}
               type="button"
-              onClick={() => setForm((current) => ({ ...current, role: "admin" }))}
+              onClick={() => fillDemo("admin")}
             >
               Admin
             </button>
           </div>
-
-          {mode === "register" && (
-            <label>
-              Name
-              <input
-                name="name"
-                value={form.name}
-                onChange={updateField}
-                autoComplete="name"
-                required
-              />
-            </label>
-          )}
 
           <label>
             Email
@@ -109,15 +90,20 @@ const Login = ({ onLogin }) => {
               type="password"
               value={form.password}
               onChange={updateField}
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              autoComplete="current-password"
               required
             />
           </label>
 
+          <div className="credential-help">
+            <span>Admin: admin@pos.com / admin123</span>
+            <span>Staff: staff@pos.com / staff123</span>
+          </div>
+
           {error && <p className="form-error">{error}</p>}
 
           <button className="primary-action" disabled={isLoading} type="submit">
-            {isLoading ? "Please wait..." : mode === "login" ? "Sign in" : "Create account"}
+            {isLoading ? "Please wait..." : "Sign in"}
           </button>
         </form>
       </section>

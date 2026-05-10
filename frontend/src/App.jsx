@@ -69,11 +69,9 @@ function App() {
     loadData();
   }, [loadData]);
 
-  const handleLogin = async (mode, form) => {
-    const body = mode === "register"
-      ? form
-      : { email: form.email, password: form.password, role: form.role };
-    const data = await fetch(`${API_URL}/auth/${mode === "register" ? "register" : "login"}`, {
+  const handleLogin = async (form) => {
+    const body = { email: form.email, password: form.password, role: form.role };
+    const data = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)

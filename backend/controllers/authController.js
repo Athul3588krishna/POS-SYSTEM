@@ -1,41 +1,26 @@
-const User = require("../models/User");
-const { hashPassword, signToken, verifyPassword } = require("../utils/auth");
+const { signToken } = require("../utils/auth");
+
+const USERS = {
+  admin: {
+    id: "admin",
+    name: "Admin",
+    email: "admin@pos.com",
+    password: "admin123",
+    role: "admin"
+  },
+  staff: {
+    id: "staff",
+    name: "Billing Staff",
+    email: "staff@pos.com",
+    password: "staff123",
+    role: "staff"
+  }
+};
 
 exports.register = async (req, res) => {
-  try {
-    const { name, email, password, role = "staff" } = req.body;
-
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "Name, email and password are required" });
-    }
-
-    const existing = await User.findOne({ email: email.toLowerCase() });
-
-    if (existing) {
-      return res.status(409).json({ message: "Email is already registered" });
-    }
-
-    const user = await User.create({
-      name,
-      email: email.toLowerCase(),
-      password: hashPassword(password),
-      role: role === "admin" ? "admin" : "staff"
-    });
-
-    const token = signToken({ id: user._id.toString(), role: user.role });
-
-    res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  res.status(403).json({
+    message: "Registration is disabled. Use the assigned login credentials."
+  });
 };
 
 exports.login = async (req, res) => {
@@ -46,9 +31,11 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = Object.values(USERS).find(
+      (entry) => entry.email === email.toLowerCase()
+    );
 
-    if (!user || !verifyPassword(password, user.password)) {
+    if (!user || user.password !== password) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
@@ -56,12 +43,12 @@ exports.login = async (req, res) => {
       return res.status(403).json({ message: `This account is registered as ${user.role}` });
     }
 
-    const token = signToken({ id: user._id.toString(), role: user.role });
+    const token = signToken({ id: user.id, role: user.role });
 
     res.json({
       token,
       user: {
-        id: user._id,
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role

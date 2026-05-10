@@ -50,32 +50,24 @@
   box-shadow: 0 18px 50px rgba(13, 28, 55, 0.12);
 }
 
-.mode-switch {
+.login-title {
+  margin-bottom: 22px;
+}
+
+.login-title h2 {
+  margin-bottom: 6px;
+  font-size: 28px;
+}
+
+.login-title p,
+.credential-help {
+  color: #6a768b;
+  font-size: 13px;
+}
+
+.login-form {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  padding: 5px;
-  margin-bottom: 26px;
-  background: #edf1f7;
-  border-radius: 8px;
-}
-
-.mode-switch button,
-.role-switch button {
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #536178;
-  padding: 10px 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.mode-switch button.active,
-.role-switch button.active {
-  background: #ffffff;
-  color: #10213f;
-  box-shadow: 0 1px 5px rgba(15, 35, 65, 0.12);
+  gap: 18px;
 }
 
 .role-switch {
@@ -88,9 +80,20 @@
   border-radius: 8px;
 }
 
-.login-form {
-  display: grid;
-  gap: 18px;
+.role-switch button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #536178;
+  padding: 10px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.role-switch button.active {
+  background: #ffffff;
+  color: #10213f;
+  box-shadow: 0 1px 5px rgba(15, 35, 65, 0.12);
 }
 
 .login-form label {
@@ -114,6 +117,15 @@
 .login-form input:focus {
   outline: 3px solid rgba(20, 98, 255, 0.16);
   border-color: #1462ff;
+}
+
+.credential-help {
+  display: grid;
+  gap: 5px;
+  border: 1px solid #dfe5ef;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #f8faff;
 }
 
 .form-error {
