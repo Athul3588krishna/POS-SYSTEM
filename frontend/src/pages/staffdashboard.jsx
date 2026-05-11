@@ -5,7 +5,7 @@ import "./dashboard.css";
 
 const EMPTY_ROWS = 13;
 
-const StaffDashboard = () => {
+const StaffDashboard = ({ productsCatalog = [], onCreateInvoice, onRefresh }) => {
   const [invoiceDetails, setInvoiceDetails] = useState({
     invNo: "", date: new Date().toISOString().split("T")[0],
     customerName: "", location: "", contactNo: "",
@@ -16,8 +16,10 @@ const StaffDashboard = () => {
   });
 
   const [products, setProducts] = useState([
-    { id: 1, name: "", quantity: "", price: "", vat: 0, total: 0 },
+    { id: 1, productId: "", name: "", quantity: "", price: "", vat: 0, total: 0 },
   ]);
+  const [message, setMessage] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const { subTotal, totalVat, grandTotal } = useMemo(() => {
     let sub = 0, vat = 0;
@@ -34,10 +36,24 @@ const StaffDashboard = () => {
     setInvoiceDetails((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   };
 
+  const findCatalogProduct = (name) =>
+    productsCatalog.find((product) => product.name.toLowerCase() === name.trim().toLowerCase());
+
   const updateProduct = (id, field, value) => {
     setProducts(products.map((p) => {
       if (p.id !== id) return p;
       const u = { ...p, [field]: value };
+      const matchedProduct = field === "name" ? findCatalogProduct(value) : null;
+
+      // Product ID is required by the backend so stock can be reduced correctly.
+      if (matchedProduct) {
+        u.productId = matchedProduct._id;
+        u.name = matchedProduct.name;
+        u.price = matchedProduct.price;
+      } else if (field === "name") {
+        u.productId = "";
+      }
+
       const qty   = Number(field === "quantity" ? value : u.quantity);
       const price = Number(field === "price"    ? value : u.price);
       u.total = qty * price; u.vat = u.total * 0.05;
@@ -46,10 +62,84 @@ const StaffDashboard = () => {
   };
 
   const addRow = () =>
-    setProducts([...products, { id: Date.now(), name: "", quantity: "", price: "", vat: 0, total: 0 }]);
+    setProducts([...products, { id: Date.now(), productId: "", name: "", quantity: "", price: "", vat: 0, total: 0 }]);
 
   const removeRow = (id) => {
     if (products.length > 1) setProducts(products.filter((p) => p.id !== id));
+  };
+
+  const getPaymentMethod = () => {
+    if (invoiceDetails.paymentCash && invoiceDetails.paymentCheque) return "Cash/Cheque";
+    if (invoiceDetails.paymentCheque) return "Cheque";
+    return "Cash";
+  };
+
+  const saveInvoice = async () => {
+    setMessage("");
+
+    const invoiceItems = products
+      .filter((product) => product.name || product.quantity || product.price)
+      .map((product) => ({
+        productId: product.productId,
+        qty: Number(product.quantity),
+        rate: Number(product.price)
+      }));
+
+    if (!invoiceItems.length) {
+      setMessage("Add at least one product before saving.");
+      return;
+    }
+
+    if (invoiceItems.some((item) => !item.productId)) {
+      setMessage("Choose products from the saved product list so stock can be updated.");
+      return;
+    }
+
+    if (invoiceItems.some((item) => !Number.isFinite(item.qty) || item.qty <= 0)) {
+      setMessage("Enter a valid quantity for every product.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // This payload matches the backend invoice API and also preserves the extra invoice form fields.
+      const savedInvoice = await onCreateInvoice({
+        date: invoiceDetails.date,
+        customer: {
+          name: invoiceDetails.customerName,
+          location: invoiceDetails.location,
+          contact: invoiceDetails.contactNo,
+          trn: invoiceDetails.customerTrn
+        },
+        discount: Number(invoiceDetails.discount) || 0,
+        paymentMethod: getPaymentMethod(),
+        items: invoiceItems,
+        details: {
+          brandName: invoiceDetails.brandName,
+          model: invoiceDetails.model,
+          totalCntr: invoiceDetails.totalCntr,
+          contract: invoiceDetails.contract,
+          dnNo: invoiceDetails.dnNo,
+          dnDate: invoiceDetails.dnDate,
+          srNo: invoiceDetails.srNo,
+          srDate: invoiceDetails.srDate,
+          lpoNo: invoiceDetails.lpoNo,
+          lpoDate: invoiceDetails.lpoDate,
+          note: invoiceDetails.note
+        }
+      });
+
+      setInvoiceDetails((current) => ({
+        ...current,
+        invNo: savedInvoice.invoiceNumber || current.invNo
+      }));
+      setMessage(`Saved ${savedInvoice.invoiceNumber}`);
+      await onRefresh?.();
+    } catch (err) {
+      setMessage(err.message || "Could not save invoice.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -136,7 +226,7 @@ const StaffDashboard = () => {
                 {products.map((p, i) => (
                   <tr key={p.id}>
                     <td className="row-num">{i + 1}</td>
-                    <td><input value={p.name} onChange={(e) => updateProduct(p.id,"name",e.target.value)} placeholder="Item description" style={{minWidth:120}}/></td>
+                    <td><input list="saved-products" value={p.name} onChange={(e) => updateProduct(p.id,"name",e.target.value)} placeholder="Item description" style={{minWidth:120}}/></td>
                     <td><input type="number" min="0" value={p.quantity} onChange={(e) => updateProduct(p.id,"quantity",e.target.value)} placeholder="0" style={{width:60}}/></td>
                     <td><input type="number" min="0" value={p.price}    onChange={(e) => updateProduct(p.id,"price",e.target.value)}    placeholder="0.00" style={{width:80}}/></td>
                     <td className="calc-cell">{p.vat   > 0 ? p.vat.toFixed(2)   : "—"}</td>
@@ -147,6 +237,11 @@ const StaffDashboard = () => {
               </tbody>
             </table>
           </div>
+          <datalist id="saved-products">
+            {productsCatalog.map((product) => (
+              <option key={product._id} value={product.name} label={`${product.stock} in stock`} />
+            ))}
+          </datalist>
           <button className="btn-secondary add-row-btn" onClick={addRow}>
             <Plus size={15}/> Add Item
           </button>
@@ -177,9 +272,16 @@ const StaffDashboard = () => {
             <label><input type="checkbox" name="paymentCheque" checked={invoiceDetails.paymentCheque} onChange={handleInputChange}/> Cheque</label>
           </div>
           <div className="actions-group">
-            <button className="btn-secondary"><Save size={15}/> Save Record</button>
+            <button className="btn-secondary" onClick={saveInvoice} disabled={isSaving}>
+              <Save size={15}/> {isSaving ? "Saving..." : "Save Record"}
+            </button>
             <button className="btn-primary" onClick={() => window.print()}><Printer size={15}/> Print A4</button>
           </div>
+          {message && (
+            <div style={{ width: "100%", color: message.startsWith("Saved") ? "#2a7d4f" : "#c00026", fontSize: 13, fontWeight: 600 }}>
+              {message}
+            </div>
+          )}
         </div>
       </div>
 

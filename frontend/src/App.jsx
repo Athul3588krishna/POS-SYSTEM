@@ -1,17 +1,39 @@
-import { useCallback, useEffect, useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
+import { clearSession, createApi, login, readSession, saveSession } from "./api/client";
 import Dashboard from "./pages/dashboard";
+import DailyReport from "./pages/dailyReport";
 import Login from "./pages/login";
+import MonthlyReport from "./pages/monthlyReport";
+import StaffDashboard from "./pages/staffdashboard";
 
-const API_URL = import.meta.env.VITE_API_URL || "/api";
-
-const readSession = () => {
-  try {
-    return JSON.parse(sessionStorage.getItem("pos-session")) || null;
-  } catch {
-    return null;
+const ProtectedRoute = ({ children, session, allowedRoles }) => {
+  if (!session?.token) return <Navigate to="/" replace />;
+  if (allowedRoles && !allowedRoles.includes(session.user?.role)) {
+    return <Navigate to="/unauthorized" replace />;
   }
+
+  return children;
 };
+
+const Unauthorized = () => (
+  <div className="unauthorized-page">
+    <div className="unauthorized-card">
+      <div className="unauthorized-icon">!</div>
+      <h2>Access Denied</h2>
+      <p>You don't have permission to view this page.</p>
+      <button
+        onClick={() => {
+          const role = localStorage.getItem("userRole");
+          window.location.href = role === "admin" ? "/dashboard" : "/invoice";
+        }}
+      >
+        Go Back
+      </button>
+    </div>
+  </div>
+);
 
 function App() {
   const [session, setSession] = useState(readSession);
@@ -20,27 +42,7 @@ function App() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const request = useCallback(
-    async (path, options = {}) => {
-      const response = await fetch(`${API_URL}${path}`, {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
-          ...options.headers
-        }
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.message || "Request failed");
-      }
-
-      return data;
-    },
-    [session]
-  );
+  const api = useMemo(() => createApi(session), [session]);
 
   const loadData = useCallback(async () => {
     if (!session?.token) return;
@@ -49,12 +51,10 @@ function App() {
     setError("");
 
     try {
-      const invoiceRequest = session.user?.role === "admin"
-        ? request("/invoices")
-        : Promise.resolve([]);
+      // Products power invoice item lookup; invoices power dashboard and reports.
       const [productData, invoiceData] = await Promise.all([
-        request("/products"),
-        invoiceRequest
+        api.getProducts(),
+        api.getInvoices()
       ]);
       setProducts(productData);
       setInvoices(invoiceData);
@@ -63,92 +63,88 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [request, session]);
+  }, [api, session]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    const syncLogout = () => {
+      clearSession();
+      setSession(null);
+      setProducts([]);
+      setInvoices([]);
+    };
+
+    window.addEventListener("pos-session-cleared", syncLogout);
+    return () => window.removeEventListener("pos-session-cleared", syncLogout);
+  }, []);
+
   const handleLogin = async (form) => {
-    const body = { email: form.email, password: form.password, role: form.role };
-    const data = await fetch(`${API_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    }).then(async (response) => {
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.message || "Authentication failed");
-      return payload;
-    });
-
-    sessionStorage.setItem("pos-session", JSON.stringify(data));
-    localStorage.removeItem("pos-session");
-    setSession(data);
-  };
-
-  const logout = () => {
-    sessionStorage.removeItem("pos-session");
-    localStorage.removeItem("pos-session");
-    setSession(null);
-    setProducts([]);
-    setInvoices([]);
-  };
-
-  const createProduct = async (payload) => {
-    setError("");
-    await request("/products", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
-    await loadData();
-  };
-
-  const updateProduct = async (id, payload) => {
-    setError("");
-    const updated = await request(`/products/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(payload)
-    });
-    setProducts((current) =>
-      current.map((product) => (product._id === id ? updated : product))
-    );
-  };
-
-  const deleteProduct = async (id) => {
-    setError("");
-    await request(`/products/${id}`, { method: "DELETE" });
-    setProducts((current) => current.filter((product) => product._id !== id));
+    const sessionData = await login(form);
+    saveSession(sessionData);
+    setSession(sessionData);
   };
 
   const createInvoice = async (payload) => {
     setError("");
-    const invoice = await request("/invoices", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
+    const invoice = await api.createInvoice(payload);
     await loadData();
     return invoice;
   };
 
-  if (!session?.token) {
-    return <Login onLogin={handleLogin} />;
-  }
-
   return (
-    <>
+    <BrowserRouter>
       {error && <div className="app-error">{error}</div>}
       {loading && <div className="loading-bar">Loading...</div>}
-      <Dashboard
-        user={session.user}
-        products={products}
-        invoices={invoices}
-        onLogout={logout}
-        onCreateProduct={createProduct}
-        onUpdateProduct={updateProduct}
-        onDeleteProduct={deleteProduct}
-        onCreateInvoice={createInvoice}
-      />
-    </>
+      <Routes>
+        <Route
+          path="/"
+          element={session?.token ? (
+            <Navigate to={session.user?.role === "admin" ? "/dashboard" : "/invoice"} replace />
+          ) : (
+            <Login onLogin={handleLogin} />
+          )}
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute session={session} allowedRoles={["admin"]}>
+              <Dashboard products={products} invoices={invoices} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/daily-report"
+          element={
+            <ProtectedRoute session={session} allowedRoles={["admin", "staff"]}>
+              <DailyReport invoices={invoices} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/monthly-report"
+          element={
+            <ProtectedRoute session={session} allowedRoles={["admin"]}>
+              <MonthlyReport invoices={invoices} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/invoice"
+          element={
+            <ProtectedRoute session={session} allowedRoles={["admin", "staff"]}>
+              <StaffDashboard productsCatalog={products} onCreateInvoice={createInvoice} onRefresh={loadData} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="/unauthorized" element={<Unauthorized />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

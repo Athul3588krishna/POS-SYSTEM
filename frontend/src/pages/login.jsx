@@ -1,113 +1,157 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import "./login.css";
 
 const Login = ({ onLogin }) => {
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-    role: "staff"
-  });
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [username, setUsername]           = useState("");
+  const [password, setPassword]           = useState("");
+  const [showPassword, setShowPassword]   = useState(false);
+  const [isLoading, setIsLoading]         = useState(false);
+  const [errorMsg, setErrorMsg]           = useState("");
 
-  const updateField = (event) => {
-    setForm((current) => ({
-      ...current,
-      [event.target.name]: event.target.value
-    }));
-  };
-
-  const fillDemo = (role) => {
-    setForm({
-      role,
-      email: role === "admin" ? "admin@pos.com" : "staff@pos.com",
-      password: role === "admin" ? "admin123" : "staff123"
-    });
-  };
-
-  const submit = async (event) => {
-    event.preventDefault();
-    setError("");
+  const handleLogin = async (e) => {
+    e.preventDefault();
     setIsLoading(true);
+    setErrorMsg("");
+    
+    // Map simple username 'admin'/'staff' to the expected emails, or just use as email
+    let email = username.trim().toLowerCase();
+    if (email === "admin") email = "admin@pos.com";
+    if (email === "staff") email = "staff@pos.com";
 
     try {
-      await onLogin(form);
+      if (onLogin) {
+        await onLogin({ email, password });
+      }
     } catch (err) {
-      setError(err.message || "Authentication failed");
+      setErrorMsg(err.message || "Invalid username or password");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <main className="login-shell">
-      <section className="login-brand">
-        <img src="/logo.png" alt="POS Billing System" />
-        <h1>POS Billing System</h1>
-        <p>Products, VAT invoices, stock updates and sales history in one workspace.</p>
-      </section>
+    <div className="login-wrapper">
 
-      <section className="login-panel" aria-label="Authentication">
-        <div className="login-title">
-          <h2>Sign in</h2>
-          <p>Use assigned admin or billing staff credentials.</p>
+      {/* ── LEFT — Branding ── */}
+      <div className="login-left">
+        <div className="left-bg-decor" />
+        <div className="left-bg-decor2" />
+        <div className="left-bg-decor3" />
+
+        <div className="branding">
+          <div className="logo-ring">
+            <div className="logo-circle">
+              <img src="/logo.png" alt="POS Logo" />
+            </div>
+          </div>
+          <h1 className="brand-title">POS Billing System</h1>
+          <p className="brand-sub">Professional Invoice Management</p>
+          <div className="brand-badges">
+            <span className="badge">⚡ Fast Billing</span>
+            <span className="badge">🧾 Tax Invoices</span>
+            <span className="badge">📊 Reports</span>
+          </div>
         </div>
 
-        <form onSubmit={submit} className="login-form">
-          <div className="role-switch" aria-label="Account role">
-            <button
-              className={form.role === "staff" ? "active" : ""}
-              type="button"
-              onClick={() => fillDemo("staff")}
-            >
-              Billing Staff
-            </button>
-            <button
-              className={form.role === "admin" ? "active" : ""}
-              type="button"
-              onClick={() => fillDemo("admin")}
-            >
-              Admin
-            </button>
+        <p className="left-footer">© 2025 POS Billing. All rights reserved.</p>
+      </div>
+
+      {/* ── RIGHT — Login Form ── */}
+      <div className="login-right">
+        <div className="login-card">
+
+          <div className="card-header">
+            <div className="header-icon">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <h2 className="card-title">TAX INVOICE</h2>
+            <p className="card-sub">Sign in to your account</p>
           </div>
 
-          <label>
-            Email
-            <input
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={updateField}
-              autoComplete="email"
-              required
-            />
-          </label>
+          {errorMsg && (
+            <div className="error-msg">
+              <svg viewBox="0 0 24 24" fill="none" width="15" height="15">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                <path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              {errorMsg}
+            </div>
+          )}
 
-          <label>
-            Password
-            <input
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={updateField}
-              autoComplete="current-password"
-              required
-            />
-          </label>
+          <form onSubmit={handleLogin} className="login-form" noValidate>
 
-          <div className="credential-help">
-            <span>Admin: admin@pos.com / admin123</span>
-            <span>Staff: staff@pos.com / staff123</span>
-          </div>
+            <div className="form-group">
+              <label htmlFor="username">Username or Email</label>
+              <div className="input-wrapper">
+                <input id="username" type="text" placeholder="Enter 'admin' or 'staff@pos.com'"
+                  value={username} onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username" required />
+              </div>
+            </div>
 
-          {error && <p className="form-error">{error}</p>}
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <div className="input-wrapper">
+                <input id="password" type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password} onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password" required />
+                <button type="button" className="eye-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}>
+                  {showPassword ? (
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"
+                        stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                      <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                        stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
 
-          <button className="primary-action" disabled={isLoading} type="submit">
-            {isLoading ? "Please wait..." : "Sign in"}
-          </button>
-        </form>
-      </section>
-    </main>
+            <div className="form-options">
+              <label className="remember-me">
+                <input type="checkbox" />
+                <span>Remember me</span>
+              </label>
+              <a href="#" className="forgot-link">Forgot password?</a>
+            </div>
+
+            <button type="submit"
+              className={`login-btn ${isLoading ? "loading" : ""}`}
+              disabled={isLoading}>
+              {isLoading ? (
+                <><span className="spinner" /> Signing in...</>
+              ) : (
+                <>
+                  <svg viewBox="0 0 24 24" fill="none" className="btn-icon">
+                    <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Sign In
+                </>
+              )}
+            </button>
+
+          </form>
+
+          <p className="card-footer">
+            Secure login powered by <strong>POS Billing</strong>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
 

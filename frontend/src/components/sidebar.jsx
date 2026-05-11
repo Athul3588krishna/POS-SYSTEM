@@ -12,9 +12,11 @@ const Sidebar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
+    sessionStorage.removeItem("pos-session");
     localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("userRole");
     localStorage.removeItem("username");
+    window.dispatchEvent(new Event("pos-session-cleared"));
     navigate("/");
   };
 
